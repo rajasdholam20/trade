@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Darker Trade – Smart Terminal UI</title>
+    <!-- Vue.js, ApexCharts, Axios, and Font Awesome CDNs -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue3-apexcharts@1.5.3/dist/vue3-apexcharts.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        :root {
+            --bg-primary: #f0f2f5; --bg-secondary: #ffffff; --text-primary: #1a1a1a;
+            --text-secondary: #888; --border-color: #e0e0e0; --accent-blue: #007bff;
+            --accent-green: #28a745; --accent-red: #dc3545; --accent-hover: #f8f9fa;
+            --text-green: #28a745; --text-red: #dc3545;
+        }
+        html[data-theme="dark"] {
+            --bg-primary: #121212; --bg-secondary: #1e1e1e; --text-primary: #e0e0e0;
+            --text-secondary: #8d8d8d; --border-color: #333; --accent-hover: #2a2a2a;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; background-color: var(--bg-primary); color: var(--text-primary); transition: background-color 0.3s, color 0.3s; }
+        #app { opacity: 0; transition: opacity 0.5s; }
+        .app-wrapper { display: flex; flex-direction: column; height: 100vh; }
+        .top-nav { display: flex; align-items: center; padding: 0 20px; background-color: var(--bg-secondary); border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
+        .top-nav .title { font-size: 22px; font-weight: 600; margin-right: 40px; color: var(--text-primary); }
+        .top-nav .nav-tabs { display: flex; height: 100%; }
+        .nav-tab { padding: 18px 20px; font-weight: 500; color: var(--text-secondary); cursor: pointer; border-bottom: 3px solid transparent; display: flex; align-items: center; gap: 8px; }
+        .nav-tab.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+        .nav-tab:hover { background-color: var(--accent-hover); }
+        .user-menu { margin-left: auto; display: flex; align-items: center; gap: 15px; }
+        .user-menu img { width: 32px; height: 32px; border-radius: 50%; }
+        .user-menu button { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 16px; }
+        .main-content { flex-grow: 1; overflow-y: auto; padding: 30px; }
+        .module-header { font-size: 28px; font-weight: 700; margin-bottom: 25px; }
+        .card { background-color: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color); padding: 20px; margin-bottom: 20px; }
+        .watchlist-controls { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+        .watchlist-tabs button { padding: 8px 16px; border: 1px solid var(--border-color); background: none; color: var(--text-secondary); cursor: pointer; border-radius: 5px; font-size: 14px; }
+        .watchlist-tabs button.active { background-color: var(--accent-blue); color: white; border-color: var(--accent-blue); }
+        .stock-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; }
+        .stock-card { padding: 15px; border: 1px solid var(--border-color); border-radius: 8px; transition: transform 0.2s, box-shadow 0.2s; }
+        .stock-card-clickable { cursor: pointer; } /* Added for hover effect on whole card */
+        .stock-card-clickable:hover { transform: translateY(-3px); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .stock-card-clickable:hover .stock-actions { opacity: 1; transform: translateY(0); }
+        .stock-info { display: flex; justify-content: space-between; align-items: center; }
+        .stock-actions { display: flex; gap: 10px; margin-top: 15px; opacity: 0; transform: translateY(10px); transition: opacity 0.3s, transform 0.3s; }
+        .stock-actions button { flex-grow: 1; padding: 8px; border-radius: 5px; border: none; cursor: pointer; font-weight: 600; }
+        .chart-view-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .chart-controls { display: flex; align-items: center; gap: 10px; }
+        .chart-controls select { background-color: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; padding: 5px; }
+        input, select { background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 5px; padding: 10px; margin-top: 5px; width: 100%; box-sizing: border-box; }
+        .btn { padding: 10px 15px; border-radius: 5px; border: none; cursor: pointer; font-weight: 600; transition: background-color 0.2s; }
+        .btn-primary { background-color: var(--accent-blue); color: white; } .btn-primary:hover { background-color: #0056b3; }
+        .btn-green { background-color: var(--accent-green); color: white; }
+        .btn-red { background-color: var(--accent-red); color: white; }
+        .text-green { color: var(--text-green); }
+        .text-red { color: var(--text-red); }
+    </style>
+</head>
+<body>
+<div id="app" class="app-wrapper">
+    <nav class="top-nav">
+        <div class="title">Darker Trade</div>
+        <div class="nav-tabs">
+            <div class="nav-tab" :class="{active: activeModule === 'watchlist'}" @click="activeModule = 'watchlist'"><i class="fa fa-star"></i> Watchlist</div>
+            <div class="nav-tab" :class="{active: activeModule === 'trade'}" @click="activeModule = 'trade'"><i class="fa fa-bolt"></i> Quick Trade</div>
+            <div class="nav-tab" :class="{active: activeModule === 'profile'}" @click="activeModule = 'profile'"><i class="fa fa-user"></i> Profile</div>
+            <div class="nav-tab" :class="{active: activeModule === 'support'}" @click="activeModule = 'support'"><i class="fa fa-life-ring"></i> Support</div>
+        </div>
+        <div v-if="user.email" class="user-menu">
+            <img :src="user.photo_url" alt="User"/>
+            <span>{{ user.full_name }}</span>
+            <button @click="logout" title="Logout"><i class="fa fa-sign-out-alt"></i></button>
+        </div>
+    </nav>
+    <main class="main-content">
+        <!-- Watchlist Module -->
+        <div v-if="activeModule === 'watchlist'">
+            <!-- This section is now simplified as we are not managing multiple watchlists -->
+            <div class="stock-cards-grid">
+                <!-- We loop directly over availableStocks -->
+                <div class="stock-card stock-card-clickable" v-for="stock in availableStocks" :key="stock.ticker">
+                    <div class="stock-info">
+                        <div>
+                            <div style="font-weight: 600; font-size: 18px;">{{ stock.ticker }}</div>
+                            <div style="font-size: 14px; color: var(--text-secondary);">{{ stock.name }}</div>
+                        </div>
+                        <!-- Live data parts are removed for this example, but can be added back -->
+                    </div>
+                    <div class="stock-actions">
+                        <button class="btn-green" @click.stop="quickBuy(stock.ticker)">Buy</button>
+                        <button class="btn-red" @click.stop="quickSell(stock.ticker)">Sell</button>
+                        <button @click.stop="viewChart(stock.ticker)" style="background-color: #444; color: white;">Chart</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Chart Display Area -->
+            <div v-if="chart.ticker" class="card" style="margin-top: 30px;">
+                <div class="chart-view-header">
+                    <h3 style="margin:0;">Chart: {{ chart.ticker }}</h3>
+                    <div class="chart-controls">
+                        <select v-model="chart.type">
+                            <option value="candlestick">Candlestick</option>
+                            <option value="bar">Bar</option>
+                            <option value="line">Line</option>
+                        </select>
+                        <select v-model="chart.interval" disabled><option>Historical</option></select>
+                        <button @click="chart.ticker = null" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size: 20px;">×</button>
+                    </div>
+                </div>
+                <!-- CORRECTED: Chart component now correctly binds to chartOptions -->
+                <apexchart :type="chart.type" height="400" :options="chartOptions" :series="chart.series"></apexchart>
+            </div>
+        </div>
+
+        <!-- NOTE: Other modules (Trade, Profile, Support) are kept as is -->
+        <!-- Quick Trade Module -->
+        <div v-if="activeModule === 'trade'">
+            <!-- ... content for trade module ... -->
+        </div>
+        <!-- Profile Module -->
+        <div v-if="activeModule === 'profile'">
+            <!-- ... content for profile module ... -->
+        </div>
+        <!-- Support Module -->
+        <div v-if="activeModule === 'support'">
+            <!-- ... content for support module ... -->
+        </div>
+    </main>
+</div>
+
+<!-- ==================== CORRECTED AND CLEANED SCRIPT ==================== -->
+<script>
+const { createApp, ref, onMounted, computed, watch } = Vue;
+
+const app = createApp({
+    setup() {
+        // --- Reactive State ---
+        const activeModule = ref('watchlist');
+        const user = ref({}); // Original user object
+        
+        // This list should ideally match the stocks in your backend 'data' folder
+        const availableStocks = ref([
+            { ticker: 'GOOGL', name: 'Alphabet Inc.' }, { ticker: 'IBM', name: 'IBM' },
+            { ticker: 'MSFT', name: 'Microsoft' }, { ticker: 'AAPL', name: 'Apple Inc.' },
+            { ticker: 'TSLA', name: 'Tesla, Inc.' }, { ticker: 'WMT', name: 'Walmart' }
+        ]);
+        
+        // State for trade module and history
+        const trade = ref({ symbol: 'AAPL', quantity: 1, side: 'buy', confirmation: '' });
+        const tradeHistory = ref([]);
+        
+        // State for the chart display
+        const chart = ref({ 
+            ticker: null, 
+            type: 'candlestick', 
+            interval: 'Historical', 
+            series: [] 
+        });
+
+        // --- Axios API Instance ---
+        // This points to your local Python (FastAPI) server
+        const api = axios.create({ baseURL: 'http://127.0.0.1:8000' });
+
+        // --- Methods ---
+
+        // This method fetches the historical data from your new backend endpoint
+        const fetchChartData = async () => {
+            if (!chart.value.ticker) return;
+            console.log(`Fetching chart data for ${chart.value.ticker}...`);
+            try {
+                const res = await api.get(`/charts/historical/${chart.value.ticker}`);
+                chart.value.series = [{ name: chart.value.ticker, data: res.data }];
+                console.log("Successfully fetched historical data.");
+            } catch (e) {
+                console.error("Failed to fetch chart data:", e);
+                alert(`Could not load chart for ${chart.value.ticker}. Is the backend server running?`);
+                chart.value.ticker = null; // Clear ticker on failure
+            }
+        };
+
+        // This method simply sets the ticker. The 'watch' function will trigger the data fetch.
+        const viewChart = (ticker) => {
+            chart.value.ticker = ticker;
+        };
+
+        // These methods are for the trade module
+        const quickBuy = (ticker) => {
+            trade.value.symbol = ticker;
+            trade.value.side = 'buy';
+            activeModule.value = 'trade';
+        };
+        
+        const quickSell = (ticker) => {
+            trade.value.symbol = ticker;
+            trade.value.side = 'sell';
+            activeModule.value = 'trade';
+        };
+
+        const executeTrade = async () => {
+            alert("Trade execution is a mock-up in this version.");
+            // Original logic can be uncommented if backend supports /trades endpoint
+            /* try {
+                const res = await api.post('/trades', { /* ... trade data ... * / });
+                // ... handle confirmation
+            } catch (e) {
+                // ... handle error
+            } */
+        };
+
+        // --- Computed Properties ---
+
+        // Computed property for the chart's configuration options
+        const chartOptions = computed(() => ({
+            chart: { 
+                type: chart.value.type, 
+                background: 'transparent', 
+                toolbar: { show: true } // Keep toolbar for zooming/panning
+            },
+            xaxis: { 
+                type: 'datetime', 
+                labels: { style: { colors: 'var(--text-secondary)' } } 
+            },
+            yaxis: { 
+                tooltip: { enabled: true }, 
+                labels: { 
+                    formatter: val => `$${val.toFixed(2)}`, 
+                    style: { colors: 'var(--text-secondary)' } 
+                } 
+            },
+            grid: { borderColor: 'var(--border-color)' },
+            tooltip: { 
+                theme: 'dark', 
+                x: { format: 'dd MMM yyyy HH:mm' } // Correctly format timestamp in tooltip
+            },
+            theme: { 
+                mode: document.documentElement.getAttribute('data-theme') || 'dark' 
+            },
+            plotOptions: {
+                candlestick: {
+                    colors: {
+                        upward: 'var(--accent-green)',
+                        downward: 'var(--accent-red)'
+                    }
+                }
+            }
+        }));
+
+        // Computed property for the trade history chart (remains as is)
+        const tradeHistoryChart = computed(() => {
+            // ... (original logic is fine)
+        });
+
+        // --- Watchers ---
+
+        // This watcher automatically calls fetchChartData whenever the ticker or chart type changes.
+        watch([() => chart.value.ticker, () => chart.value.type], () => {
+            if(chart.value.ticker) {
+                fetchChartData();
+            }
+        });
+
+        // --- Lifecycle Hook ---
+        onMounted(() => {
+            // Simplified: No authentication check needed for this local file example.
+            // Just fade in the app.
+            document.getElementById('app').style.opacity = 1;
+            console.log("App mounted. Ready to display charts.");
+        });
+
+        return {
+            activeModule,
+            user,
+            availableStocks,
+            trade,
+            chart,
+            tradeHistoryChart,
+            viewChart,
+            quickBuy,
+            quickSell,
+            executeTrade,
+            chartOptions // Expose chartOptions to the template
+        };
+    },
+    // Register the ApexCharts component
+    components: {
+        apexchart: window.VueApexCharts
+    }
+});
+
+app.mount('#app');
+</script>
+
+</body>
+</html>

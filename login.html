@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Darker Trade</title>
+    <!-- Vue.js and Axios CDNs -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        :root {
+            --accent-blue: #007bff; --accent-red: #dc3545; --accent-green: #28a745;
+        }
+        html[data-theme="dark"] {
+            --bg-primary: #121212; --bg-secondary: #1e1e1e; --text-primary: #e0e0e0;
+            --border-color: #333;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+        }
+        .container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        .auth-box {
+            background-color: var(--bg-secondary);
+            padding: 40px;
+            border-radius: 10px;
+            width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-sizing: border-box;
+        }
+        .auth-box h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+        .auth-box input {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            padding: 12px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        .message {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 14px;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: 500;
+        }
+        .error-msg {
+             background-color: rgba(220, 53, 69, 0.1);
+             color: var(--accent-red);
+        }
+        .success-msg {
+            background-color: rgba(40, 167, 69, 0.1);
+            color: var(--accent-green);
+        }
+        .btn {
+            padding: 12px 15px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 15px;
+            font-size: 16px;
+            transition: background-color 0.2s, opacity 0.2s;
+        }
+        .btn-primary {
+            background-color: var(--accent-blue);
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #0069d9;
+        }
+        .auth-toggle {
+            text-align: center;
+            margin-top: 20px;
+            color: var(--accent-blue);
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .auth-toggle:hover {
+            text-decoration: underline;
+        }
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+<div id="auth-app">
+    <div class="container">
+        <div class="auth-box" :class="{ loading: isLoading }">
+            <h2>{{ isLoginView ? 'Darker Trade Login' : 'Create Account' }}</h2>
+
+            <!-- Error and Success Messages -->
+            <div v-if="message" class="message" :class="isError ? 'error-msg' : 'success-msg'">
+                {{ message }}
+            </div>
+
+            <form @submit.prevent="handleAuth">
+                <input v-if="!isLoginView" type="text" v-model="fullName" placeholder="Full Name" required />
+                <input type="email" v-model="email" placeholder="Email Address" required />
+                <input type="password" v-model="password" placeholder="Password" required />
+                
+                <button type="submit" class="btn btn-primary">
+                    {{ isLoginView ? 'Login' : 'Register' }}
+                </button>
+            </form>
+
+            <p class="auth-toggle" @click="toggleView">
+                {{ isLoginView ? 'Need an account? Register' : 'Already have an account? Login' }}
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, onMounted } = Vue;
+
+    createApp({
+        setup() {
+            // --- Reactive State ---
+            const isLoginView = ref(true);
+            const email = ref('');
+            const password = ref('');
+            const fullName = ref('');
+            const message = ref('');
+            const isError = ref(false);
+            const isLoading = ref(false);
+            const API_BASE_URL = 'http://127.0.0.1:8000';
+
+            // --- Methods ---
+            const handleAuth = async () => {
+                message.value = ''; // Clear previous messages
+                isError.value = false;
+                isLoading.value = true;
+
+                try {
+                    if (isLoginView.value) {
+                        // --- Login Logic ---
+                        const formData = new URLSearchParams();
+                        formData.append('username', email.value);
+                        formData.append('password', password.value);
+                        
+                        const response = await axios.post(`${API_BASE_URL}/auth/login`, formData);
+                        
+                        localStorage.setItem('darker-trade-token', response.data.access_token);
+                        window.location.href = 'dashboard.html'; // Redirect on successful login
+                    } else {
+                        // --- Registration Logic ---
+                        const payload = { 
+                            email: email.value, 
+                            full_name: fullName.value, 
+                            password: password.value 
+                        };
+                        const response = await axios.post(`${API_BASE_URL}/auth/register`, payload);
+                        
+                        isError.value = false;
+                        message.value = response.data.message; // Show success message
+                        isLoginView.value = true; // Switch to login view after successful registration
+                    }
+                } catch (err) {
+                    isError.value = true;
+                    message.value = err.response?.data?.detail || 'An unknown error occurred.';
+                } finally {
+                    isLoading.value = false;
+                }
+            };
+            
+            const toggleView = () => {
+                isLoginView.value = !isLoginView.value;
+                message.value = ''; // Clear messages when toggling
+                isError.value = false;
+            };
+
+            // --- Lifecycle Hook ---
+            onMounted(() => {
+                // If a token exists, the user is already logged in. Redirect to the dashboard.
+                if (localStorage.getItem('darker-trade-token')) {
+                    window.location.href = 'dashboard.html';
+                }
+            });
+
+            return { 
+                isLoginView, email, password, fullName, message, isError, 
+                isLoading, handleAuth, toggleView 
+            };
+        }
+    }).mount('#auth-app');
+</script>
+</body>
+</html>
